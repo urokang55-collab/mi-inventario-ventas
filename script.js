@@ -1,18 +1,12 @@
 // 📱 Aplicación de Gestión de Inventario y Ventas v2.0
-// Con integración a Google Sheets para sincronización de datos
+// Con soporte híbrido: Local Storage + Google Sheets (con manejo de errores CORS)
 // 
-// INSTRUCCIONES:
-// 1. Completa la URL del Google Apps Script en config.js
-// 2. Reemplaza tu script.js actual con este archivo
-
-// ================================
-// CONFIGURACIÓN Y CONEXIÓN
-// ================================
+// CONFIGURACIÓN: Ver config.js
 
 // Cargar configuración
 const CONFIG = window.CONFIG || {
-  GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyYl0y6IWNU8nUbdWK6zSzkBLlmnoNlW_O7KYL-ncm6t3Si8NlvRDadxuIz5rJEgaHh/exec",
-  SYNC_MODE: "google_sheets"
+    GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyYl0y6IWNU8nUbdWK6zSzkBLlmnoNlW_O7KYL-ncm6t3Si8NlvRDadxuIz5rJEgaHh/exec",
+    SYNC_MODE: "google_sheets"
 };
 
 // Clase para manejo de sincronización con Google Sheets
@@ -22,6 +16,7 @@ class GoogleSheetsSync {
         this.isOnline = navigator.onLine;
         this.isSyncing = false;
         this.lastSyncTime = null;
+        this.corsErrorShown = false; // Evitar mostrar el mismo error múltiples veces
         
         // Escuchar cambios de conectividad
         window.addEventListener('online', () => {
@@ -35,7 +30,7 @@ class GoogleSheetsSync {
         });
     }
 
-    // Realizar petición al Google Apps Script
+    // Realizar petición al Google Apps Script con mejor manejo de errores
     async request(action, data = {}) {
         try {
             const response = await fetch(this.url, {
@@ -56,14 +51,43 @@ class GoogleSheetsSync {
             const result = await response.json();
             
             if (!result.success) {
-                throw new Error(result.error || 'Error desconocido');
+                throw new Error(result.error || result.message || 'Error desconocido');
             }
 
             return result.data;
         } catch (error) {
             console.error('Error en petición Google Sheets:', error);
+            
+            // Detectar errores CORS específicos
+            if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                if (!this.corsErrorShown) {
+                    this.showCorsError();
+                    this.corsErrorShown = true;
+                }
+            } else {
+                this.showToast('Error de conexión: ' + error.message, 'error');
+            }
+            
             throw error;
         }
+    }
+
+    // Mostrar error CORS específico
+    showCorsError() {
+        const errorMessage = `
+⚠️ Error de CORS detectado
+
+Tu aplicación está intentando conectarse a Google Apps Script desde GitHub Pages.
+
+SOLUCIONES:
+1. Usar modo LOCAL (desactivar sincronización)
+2. Permitir acceso anónimo en tu Google Apps Script
+
+ACTUALMENTE: Funcionando en modo local únicamente.
+`;
+        
+        this.showToast('Error CORS - Ver configuración', 'error');
+        console.warn(errorMessage);
     }
 
     // Obtener productos desde Google Sheets
@@ -72,7 +96,7 @@ class GoogleSheetsSync {
             return await this.request('getProducts');
         } catch (error) {
             console.error('Error obteniendo productos:', error);
-            return [];
+            return this.loadFromLocalStorage('products') || [];
         }
     }
 
@@ -82,6 +106,9 @@ class GoogleSheetsSync {
             return await this.request('addProduct', { product });
         } catch (error) {
             console.error('Error agregando producto:', error);
+            // Guardar localmente como fallback
+            this.saveToLocalStorage('products', [...this.getLocalProducts(), product]);
+            this.showToast('Producto guardado localmente (sin sincronización)', 'warning');
             throw error;
         }
     }
@@ -112,7 +139,7 @@ class GoogleSheetsSync {
             return await this.request('getSales');
         } catch (error) {
             console.error('Error obteniendo ventas:', error);
-            return [];
+            return this.loadFromLocalStorage('sales') || [];
         }
     }
 
@@ -122,11 +149,41 @@ class GoogleSheetsSync {
             return await this.request('addSale', { sale });
         } catch (error) {
             console.error('Error agregando venta:', error);
+            // Guardar localmente como fallback
+            this.saveToLocalStorage('sales', [...this.getLocalSales(), sale]);
+            this.showToast('Venta guardada localmente (sin sincronización)', 'warning');
             throw error;
         }
     }
 
-    // Sincronizar datos
+    // Métodos de almacenamiento local como fallback
+    loadFromLocalStorage(key) {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } catch (error) {
+            console.error('Error loading from localStorage:', error);
+            return null;
+        }
+    }
+
+    saveToLocalStorage(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (error) {
+            console.error('Error saving to localStorage:', error);
+        }
+    }
+
+    getLocalProducts() {
+        return this.loadFromLocalStorage('products') || [];
+    }
+
+    getLocalSales() {
+        return this.loadFromLocalStorage('sales') || [];
+    }
+
+    // Sincronizar datos (con modo fallback)
     async syncData() {
         if (this.isSyncing || !this.isOnline || CONFIG.SYNC_MODE !== 'google_sheets') {
             return;
@@ -136,16 +193,16 @@ class GoogleSheetsSync {
         this.updateSyncStatus('Sincronizando...', 'syncing');
 
         try {
-            // Sincronizar productos
+            // Intentar sincronizar con Google Sheets
             const cloudProducts = await this.getProducts();
+            const cloudSales = await this.getSales();
+
             if (cloudProducts && cloudProducts.length > 0) {
-                localStorage.setItem('cloud_products', JSON.stringify(cloudProducts));
+                this.saveToLocalStorage('cloud_products', cloudProducts);
             }
 
-            // Sincronizar ventas
-            const cloudSales = await this.getSales();
             if (cloudSales && cloudSales.length > 0) {
-                localStorage.setItem('cloud_sales', JSON.stringify(cloudSales));
+                this.saveToLocalStorage('cloud_sales', cloudSales);
             }
 
             this.lastSyncTime = new Date();
@@ -159,6 +216,11 @@ class GoogleSheetsSync {
         } catch (error) {
             console.error('Error sincronizando:', error);
             this.updateSyncStatus('Error de sincronización', 'error');
+            
+            // Fallback a datos locales
+            if (appState) {
+                appState.loadFromLocal();
+            }
         } finally {
             this.isSyncing = false;
             setTimeout(() => this.updateSyncStatus('', 'hidden'), 3000);
@@ -215,7 +277,8 @@ class GoogleSheetsSync {
         // Mostrar
         setTimeout(() => toast.style.opacity = '1', 100);
 
-        // Ocultar después de 3 segundos
+        // Ocultar después de 4 segundos para errores
+        const duration = type === 'error' ? 5000 : 3000;
         setTimeout(() => {
             toast.style.opacity = '0';
             setTimeout(() => {
@@ -223,7 +286,7 @@ class GoogleSheetsSync {
                     toast.parentNode.removeChild(toast);
                 }
             }, 300);
-        }, 3000);
+        }, duration);
     }
 }
 
@@ -248,10 +311,8 @@ class AppState {
         // Inicializar sincronización
         this.sync = new GoogleSheetsSync();
         
-        // Auto-sync si está habilitado
-        if (CONFIG.UI.AUTO_REFRESH && CONFIG.SYNC_MODE === 'google_sheets') {
-            setInterval(() => this.syncData(), CONFIG.UI.REFRESH_INTERVAL);
-        }
+        // Auto-sync cada 30 segundos
+        setInterval(() => this.syncData(), 30000);
     }
 
     // Sincronizar datos desde la nube
@@ -266,15 +327,15 @@ class AppState {
         try {
             if (CONFIG.SYNC_MODE === 'google_sheets') {
                 // Cargar productos
-                const cloudProducts = localStorage.getItem('cloud_products');
+                const cloudProducts = this.sync.loadFromLocalStorage('cloud_products');
                 if (cloudProducts) {
-                    this.products = JSON.parse(cloudProducts);
+                    this.products = cloudProducts;
                 }
 
                 // Cargar ventas
-                const cloudSales = localStorage.getItem('cloud_sales');
+                const cloudSales = this.sync.loadFromLocalStorage('cloud_sales');
                 if (cloudSales) {
-                    this.sales = JSON.parse(cloudSales);
+                    this.sales = cloudSales;
                 }
 
                 // Actualizar UI
@@ -284,10 +345,39 @@ class AppState {
             }
         } catch (error) {
             console.error('Error cargando datos de la nube:', error);
+            this.loadFromLocal(); // Fallback a local
         }
     }
 
-    // Métodos para productos (con sincronización)
+    // Cargar datos desde almacenamiento local
+    loadFromLocal() {
+        try {
+            // Cargar productos
+            const localProducts = this.sync.loadFromLocalStorage('products');
+            if (localProducts) {
+                this.products = localProducts;
+            }
+
+            // Cargar ventas
+            const localSales = this.sync.loadFromLocalStorage('sales');
+            if (localSales) {
+                this.sales = localSales;
+            }
+
+            // Actualizar UI
+            this.renderProducts();
+            this.renderSalesHistory();
+            this.updateReports();
+
+            if (CONFIG.SYNC_MODE === 'google_sheets') {
+                this.sync.showToast('Usando datos locales (sin sincronización)', 'warning');
+            }
+        } catch (error) {
+            console.error('Error cargando datos locales:', error);
+        }
+    }
+
+    // Métodos para productos (con sincronización híbrida)
     async addProduct(product) {
         const newProduct = {
             id: this.generateId(),
@@ -297,17 +387,19 @@ class AppState {
 
         this.products.push(newProduct);
         
-        // Guardar localmente
-        localStorage.setItem('products', JSON.stringify(this.products));
+        // Guardar localmente siempre
+        this.sync.saveToLocalStorage('products', this.products);
         
-        // Sincronizar si está habilitado
+        // Intentar sincronizar si está habilitado
         if (CONFIG.SYNC_MODE === 'google_sheets') {
             try {
                 await this.sync.addProduct(newProduct);
                 this.sync.showToast('Producto guardado y sincronizado', 'success');
             } catch (error) {
-                this.sync.showToast('Producto guardado localmente (sin conexión)', 'warning');
+                this.sync.showToast('Producto guardado localmente (sin sincronización)', 'warning');
             }
+        } else {
+            this.sync.showToast('Producto agregado exitosamente', 'success');
         }
 
         this.renderProducts();
@@ -326,17 +418,19 @@ class AppState {
             
             this.products[index] = updatedProduct;
             
-            // Guardar localmente
-            localStorage.setItem('products', JSON.stringify(this.products));
+            // Guardar localmente siempre
+            this.sync.saveToLocalStorage('products', this.products);
             
-            // Sincronizar si está habilitado
+            // Intentar sincronizar si está habilitado
             if (CONFIG.SYNC_MODE === 'google_sheets') {
                 try {
                     await this.sync.updateProduct(updatedProduct);
                     this.sync.showToast('Producto actualizado y sincronizado', 'success');
                 } catch (error) {
-                    this.sync.showToast('Producto actualizado localmente (sin conexión)', 'warning');
+                    this.sync.showToast('Producto actualizado localmente (sin sincronización)', 'warning');
                 }
+            } else {
+                this.sync.showToast('Producto actualizado exitosamente', 'success');
             }
 
             this.renderProducts();
@@ -349,17 +443,19 @@ class AppState {
         if (index !== -1) {
             this.products.splice(index, 1);
             
-            // Guardar localmente
-            localStorage.setItem('products', JSON.stringify(this.products));
+            // Guardar localmente siempre
+            this.sync.saveToLocalStorage('products', this.products);
             
-            // Sincronizar si está habilitado
+            // Intentar sincronizar si está habilitado
             if (CONFIG.SYNC_MODE === 'google_sheets') {
                 try {
                     await this.sync.deleteProduct(index);
                     this.sync.showToast('Producto eliminado y sincronizado', 'success');
                 } catch (error) {
-                    this.sync.showToast('Producto eliminado localmente (sin conexión)', 'warning');
+                    this.sync.showToast('Producto eliminado localmente (sin sincronización)', 'warning');
                 }
+            } else {
+                this.sync.showToast('Producto eliminado exitosamente', 'success');
             }
 
             this.renderProducts();
@@ -375,11 +471,11 @@ class AppState {
         const product = this.getProduct(id);
         if (product) {
             product.stock = Math.max(0, product.stock - quantitySold);
-            localStorage.setItem('products', JSON.stringify(this.products));
+            this.sync.saveToLocalStorage('products', this.products);
         }
     }
 
-    // Métodos para ventas (con sincronización)
+    // Métodos para ventas (con sincronización híbrida)
     async addSale(sale) {
         const id = this.generateId();
         const newSale = {
@@ -397,17 +493,19 @@ class AppState {
             this.updateStock(saleProduct.id, saleProduct.quantity);
         });
         
-        // Guardar localmente
-        localStorage.setItem('sales', JSON.stringify(this.sales));
+        // Guardar localmente siempre
+        this.sync.saveToLocalStorage('sales', this.sales);
         
-        // Sincronizar si está habilitado
+        // Intentar sincronizar si está habilitado
         if (CONFIG.SYNC_MODE === 'google_sheets') {
             try {
                 await this.sync.addSale(newSale);
                 this.sync.showToast('Venta guardada y sincronizada', 'success');
             } catch (error) {
-                this.sync.showToast('Venta guardada localmente (sin conexión)', 'warning');
+                this.sync.showToast('Venta guardada localmente (sin sincronización)', 'warning');
             }
+        } else {
+            this.sync.showToast('Venta registrada exitosamente', 'success');
         }
 
         this.renderSalesHistory();
@@ -419,7 +517,7 @@ class AppState {
         const sale = this.sales.find(s => s.id === saleId);
         if (sale && sale.paymentMethod === 'credito') {
             sale.isPaid = true;
-            localStorage.setItem('sales', JSON.stringify(this.sales));
+            this.sync.saveToLocalStorage('sales', this.sales);
             this.renderSalesHistory();
             this.updateReports();
             this.sync.showToast('Crédito marcado como pagado', 'success');
@@ -442,9 +540,8 @@ class AppState {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    // Métodos de renderizado (mantener existentes)
+    // Métodos de renderizado (actualizados)
     renderProducts() {
-        // Implementación existente de renderizado
         const productList = document.getElementById('product-list');
         if (!productList) return;
 
@@ -452,6 +549,19 @@ class AppState {
         const filteredProducts = this.products.filter(product =>
             product.name.toLowerCase().includes(searchTerm)
         );
+
+        if (filteredProducts.length === 0) {
+            productList.innerHTML = `
+                <div class="empty-state">
+                    <h3>No hay productos</h3>
+                    <p>${CONFIG.SYNC_MODE === 'google_sheets' ? 'Los productos se sincronizarán automáticamente' : 'Agrega tu primer producto para comenzar'}</p>
+                    <button class="primary-button" onclick="appState.showModal('product-modal')">
+                        Agregar Producto
+                    </button>
+                </div>
+            `;
+            return;
+        }
 
         productList.innerHTML = filteredProducts.map(product => `
             <div class="product-card" data-id="${product.id}">
@@ -471,12 +581,21 @@ class AppState {
     }
 
     renderSalesHistory() {
-        // Implementación existente de renderizado
         const historyList = document.getElementById('sales-history');
         if (!historyList) return;
 
         const filterValue = document.getElementById('sales-filter')?.value || 'all';
         const filteredSales = this.getFilteredSales(filterValue);
+
+        if (filteredSales.length === 0) {
+            historyList.innerHTML = `
+                <div class="empty-state">
+                    <h3>No hay ventas</h3>
+                    <p>Las ventas registradas aparecerán aquí</p>
+                </div>
+            `;
+            return;
+        }
 
         historyList.innerHTML = filteredSales.map(sale => `
             <div class="sale-card">
@@ -527,7 +646,6 @@ class AppState {
     }
 
     updateReports() {
-        // Implementación existente de reportes
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -578,14 +696,14 @@ class AppState {
         Object.entries(elements).forEach(([id, value]) => {
             const element = document.getElementById(id);
             if (element) {
-                element.textContent = typeof value === 'number' && id.includes('sales') || id.includes('credit') || id.includes('profit') 
+                element.textContent = typeof value === 'number' && (id.includes('sales') || id.includes('credit') || id.includes('profit')) 
                     ? `$${value.toLocaleString()}`
                     : value.toString();
             }
         });
     }
 
-    // Métodos de edición (mantener existentes)
+    // Métodos de edición
     editProduct(id) {
         const product = this.getProduct(id);
         if (product) {
@@ -631,16 +749,16 @@ let appState;
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Inicializando aplicación con integración Google Sheets');
-    
-    // Crear indicador de sincronización
-    createSyncStatusIndicator();
+    console.log('🚀 Inicializando aplicación híbrida (Local + Google Sheets)');
     
     // Inicializar estado de la aplicación
     appState = new AppState();
     
-    // Cargar datos iniciales
+    // Cargar datos (prioridad: nube, fallback: local)
     await appState.loadFromCloud();
+    if (appState.products.length === 0) {
+        appState.loadFromLocal();
+    }
     
     // Configurar event listeners
     setupEventListeners();
@@ -648,30 +766,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     console.log('✅ Aplicación inicializada');
 });
 
-// Crear indicador de estado de sincronización
-function createSyncStatusIndicator() {
-    const statusDiv = document.createElement('div');
-    statusDiv.id = 'sync-status';
-    statusDiv.className = 'sync-status hidden';
-    statusDiv.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        z-index: 9999;
-        transition: all 0.3s ease;
-    `;
-    document.body.appendChild(statusDiv);
-}
-
 // Configurar event listeners
 function setupEventListeners() {
     // Navegación por pestañas
-    document.querySelectorAll('.tab-button').forEach(button => {
+    document.querySelectorAll('.nav-button').forEach(button => {
         button.addEventListener('click', function() {
             const tabId = this.dataset.tab;
             switchTab(tabId);
@@ -682,6 +780,12 @@ function setupEventListeners() {
     const fabButton = document.getElementById('fab-add-product');
     if (fabButton) {
         fabButton.addEventListener('click', () => appState.showModal('product-modal'));
+    }
+
+    // Botón principal para agregar producto
+    const addProductBtn = document.getElementById('add-product-btn');
+    if (addProductBtn) {
+        addProductBtn.addEventListener('click', () => appState.showModal('product-modal'));
     }
 
     // Búsqueda de productos
@@ -706,12 +810,18 @@ function setupEventListeners() {
     if (saleForm) {
         saleForm.addEventListener('submit', handleSaleSubmit);
     }
+
+    // Configuración
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => appState.showModal('settings-modal'));
+    }
 }
 
 // Cambiar pestaña activa
 function switchTab(tabId) {
     // Actualizar botones
-    document.querySelectorAll('.tab-button').forEach(btn => {
+    document.querySelectorAll('.nav-button').forEach(btn => {
         btn.classList.remove('active');
     });
     document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
@@ -720,7 +830,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(tabId).classList.add('active');
+    document.getElementById(`${tabId}-tab`).classList.add('active');
 
     // Actualizar estado
     appState.currentTab = tabId;
@@ -798,5 +908,4 @@ async function handleSaleSubmit(e) {
     
     document.getElementById('sale-form').reset();
     appState.hideModal('sale-modal');
-    appState.sync?.showToast('Venta registrada exitosamente', 'success');
 }

@@ -1,1 +1,13 @@
-{"name": "Inventario y Ventas v2.0", "short_name": "Inventario", "description": "Aplicación para gestión de inventario y ventas con sincronización", "start_url": "/", "display": "standalone", "background_color": "#ffffff", "theme_color": "#0066FF", "orientation": "portrait-primary", "icons": [{"src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik02NCA2NEgxMjhWODBINjRWNjRaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTI4IDEyOEg2NFYxNDhIMTI4VjEyOFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik02NCAyMEgxMjhWMjBINjRWMjBaIiBmaWxsPSJ3aGl0ZSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDBfbGluZWFyXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iMTkyIiB5Mj0iMTkyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiMwMDY2RkYiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTA0RjY1Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2Zz4K", "sizes": "192x192", "type": "image/svg+xml"}, {"src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0xNzEgMTcxSDM0MVYyMTNIMTcxVjE3MVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0zNDEgMzQxSDE3MVYzODNIMzQxVjM0MVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNzEgNTNIMzQxVjEwMUgxNzFWNTNaIiBmaWxsPSJ3aGl0ZSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDBfbGluZWFyXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iNTEyIiB5Mj0iNTEyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiMwMDY2RkYiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTA0RjY1Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2Zz4K", "sizes": "512x512", "type": "image/svg+xml"}], "categories": ["business", "productivity"], "lang": "es", "dir": "ltr"}
+{
+  "name": "Inventario y Ventas v2.0",
+  "short_name": "Inventario",
+  "description": "Aplicación para gestión de inventario y ventas con sincronización Google Sheets",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0066FF",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
+  "lang": "es",
+  "dir": "ltr"
+}

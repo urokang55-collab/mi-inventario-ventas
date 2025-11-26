@@ -1,35 +1,20 @@
-// Service Worker para la aplicación PWA
-const CACHE_NAME = 'inventario-ventas-v2.0';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/script.js',
-  '/config.js',
-  '/manifest.json',
-  '/sw.js'
-];
+// Service Worker simplificado para la aplicación PWA
+const CACHE_NAME = 'inventario-ventas-v2.1';
 
 // Instalar Service Worker
 self.addEventListener('install', function(event) {
   console.log('Service Worker: Instalando...');
-  
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function(cache) {
-        console.log('Service Worker: Cache abierto');
-        return cache.addAll(urlsToCache);
-      })
-      .catch(function(error) {
-        console.log('Service Worker: Error al cachear:', error);
-      })
+    caches.open(CACHE_NAME).then(function(cache) {
+      console.log('Service Worker: Cache abierto');
+      return cache;
+    })
   );
 });
 
 // Activar Service Worker
 self.addEventListener('activate', function(event) {
   console.log('Service Worker: Activando...');
-  
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
@@ -46,7 +31,7 @@ self.addEventListener('activate', function(event) {
 
 // Interceptar requests de red
 self.addEventListener('fetch', function(event) {
-  // No cachear requests a Google Apps Script
+  // No cachear requests a Google Apps Script (evita problemas CORS)
   if (event.request.url.includes('script.google.com')) {
     return;
   }
