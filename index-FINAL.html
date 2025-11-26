@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi Inventario y Ventas v2.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="theme-color" content="#0066FF">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Configuración Google Sheets -->
+    <script src="config.js"></script>
+</head>
+<body>
+    <!-- App Shell -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 id="page-title">Inventario</h1>
+            <div class="header-actions">
+                <button class="icon-button" id="settings-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m17-5a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </button>
+                <!-- Indicador de Sincronización -->
+                <div id="sync-status" class="sync-status hidden">
+                    <span class="sync-icon">🔄</span>
+                    <span class="sync-text">Sincronizando...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Inventario Tab -->
+            <section id="inventario-tab" class="tab-content active">
+                <div class="tab-header">
+                    <h2>Inventario</h2>
+                    <button class="primary-button" id="add-product-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Agregar Producto
+                    </button>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="product-search" placeholder="Buscar productos..." class="search-input">
+                </div>
+                <div id="product-list" class="products-list">
+                    <!-- Products will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Venta Tab -->
+            <section id="venta-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Nueva Venta</h2>
+                </div>
+                
+                <div class="sale-container">
+                    <!-- Selección de productos -->
+                    <div class="section">
+                        <h3>Seleccionar Productos</h3>
+                        <div class="product-search">
+                            <input type="text" id="sale-product-search" placeholder="Buscar en inventario..." class="search-input">
+                            <div id="available-products" class="available-products">
+                                <!-- Available products will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Productos en la venta -->
+                    <div class="section">
+                        <h3>Productos en la Venta</h3>
+                        <div id="current-sale-products" class="current-sale-products">
+                            <p class="empty-message">No hay productos seleccionados</p>
+                        </div>
+                    </div>
+
+                    <!-- Información del cliente -->
+                    <div class="section">
+                        <h3>Información del Cliente</h3>
+                        <div class="form-group">
+                            <label for="customer-name">Nombre del Cliente</label>
+                            <input type="text" id="customer-name" class="form-input" placeholder="Ej: Juan Pérez">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="payment-method">Método de Pago</label>
+                            <select id="payment-method" class="form-select">
+                                <option value="efectivo">💵 Efectivo</option>
+                                <option value="tarjeta">💳 Tarjeta</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="credito">📋 A Crédito</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Total -->
+                    <div class="section">
+                        <div class="total-display">
+                            <h3>Total: $<span id="sale-total">0</span></h3>
+                        </div>
+                        
+                        <button id="complete-sale-btn" class="primary-button large" disabled>
+                            Completar Venta
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Historial Tab -->
+            <section id="historial-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Historial de Ventas</h2>
+                    <select id="sales-filter" class="filter-select">
+                        <option value="all">Todas las ventas</option>
+                        <option value="today">Hoy</option>
+                        <option value="week">Última semana</option>
+                        <option value="month">Último mes</option>
+                        <option value="credit">Solo créditos pendientes</option>
+                        <option value="credit-paid">Solo créditos pagados</option>
+                    </select>
+                </div>
+                
+                <div id="sales-history" class="sales-history">
+                    <!-- Sales history will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Reportes Tab -->
+            <section id="reportes-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Reportes</h2>
+                </div>
+                
+                <div class="reports-grid">
+                    <div class="report-card">
+                        <div class="report-icon">💰</div>
+                        <div class="report-info">
+                            <h3>Ventas del Día</h3>
+                            <p class="report-value" id="today-sales">$0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">📦</div>
+                        <div class="report-info">
+                            <h3>Productos en Stock</h3>
+                            <p class="report-value" id="products-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">⏳</div>
+                        <div class="report-info">
+                            <h3>Créditos Pendientes</h3>
+                            <p class="report-value" id="pending-credit">$0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">⚠️</div>
+                        <div class="report-info">
+                            <h3>Stock Bajo</h3>
+                            <p class="report-value" id="low-stock-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">💹</div>
+                        <div class="report-info">
+                            <h3>Ganancia del Día</h3>
+                            <p class="report-value" id="today-profit">$0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">📊</div>
+                        <div class="report-info">
+                            <h3>Ganancia Total</h3>
+                            <p class="report-value" id="total-profit">$0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">✅</div>
+                        <div class="report-info">
+                            <h3>Crédito Pagado</h3>
+                            <p class="report-value" id="paid-credit-sales">$0</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fab-add-product">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        </button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-button active" data-tab="inventario">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span>Inventario</span>
+            </button>
+            
+            <button class="nav-button" data-tab="venta">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                <span>Venta</span>
+            </button>
+            
+            <button class="nav-button" data-tab="historial">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v5h5"></path>
+                    <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                </svg>
+                <span>Historial</span>
+            </button>
+            
+            <button class="nav-button" data-tab="reportes">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                <span>Reportes</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Modals -->
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="product-modal-title">Agregar Producto</h3>
+                <button class="modal-close" onclick="appState.hideModal('product-modal')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="product-form" class="modal-body">
+                <div class="form-group">
+                    <label for="product-name">Nombre del Producto</label>
+                    <input type="text" id="product-name" class="form-input" placeholder="Ej: Smartphone Samsung" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="product-purchase">Precio de Compra</label>
+                        <input type="number" id="product-purchase" class="form-input" placeholder="8500" step="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="product-sale">Precio de Venta</label>
+                        <input type="number" id="product-sale" class="form-input" placeholder="12000" step="0.01" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product-stock">Cantidad en Stock</label>
+                    <input type="number" id="product-stock" class="form-input" placeholder="15" min="0" required>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="secondary-button" onclick="appState.hideModal('product-modal')">Cancelar</button>
+                    <button type="submit" class="primary-button">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Modal -->
+    <div id="sale-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirmar Venta</h3>
+                <button class="modal-close" onclick="appState.hideModal('sale-modal')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="sale-form" class="modal-body">
+                <div id="sale-summary" class="sale-summary">
+                    <!-- Sale summary will be populated here -->
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="secondary-button" onclick="appState.hideModal('sale-modal')">Cancelar</button>
+                    <button type="submit" class="primary-button">Confirmar Venta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configuración</h3>
+                <button class="modal-close" onclick="appState.hideModal('settings-modal')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <h4>🔄 Estado de Sincronización</h4>
+                    <p id="sync-status-text">Verificando conexión...</p>
+                </div>
+                
+                <div class="setting-item">
+                    <h4>📊 Modo de Datos</h4>
+                    <p>Actual: <span id="data-mode">Google Sheets</span></p>
+                    <small>Los datos se sincronizan automáticamente entre dispositivos</small>
+                </div>
+                
+                <div class="setting-item">
+                    <h4>💾 Respaldo</h4>
+                    <button id="export-data-btn" class="secondary-button">Exportar Datos</button>
+                    <button id="import-data-btn" class="secondary-button">Importar Datos</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
