@@ -11,8 +11,8 @@
 
 // Cargar configuración
 const CONFIG = window.CONFIG || {
-  GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/AKfcbzXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec",
-  SYNC_MODE: "localStorage"
+  GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyYl0y6IWNU8nUbdWK6zSzkBLlmnoNlW_O7KYL-ncm6t3Si8NlvRDadxuIz5rJEgaHh/exec",
+  SYNC_MODE: "google_sheets"
 };
 
 // Clase para manejo de sincronización con Google Sheets
